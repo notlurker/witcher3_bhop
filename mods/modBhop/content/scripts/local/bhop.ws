@@ -1,3 +1,7 @@
+// Half-Life 1 air strafing, active only while Gervant First Person is the view.
+// GoldSrc units: sv_airaccelerate 10, sv_maxspeed 320, wish cap 30, command speed 400, 100 Hz.
+// Holding jump skips the HL1 jump-release check. The 1.7x bunnyhop speed crop is not applied.
+
 @addField(CExplorationStateJump)
 var m_BhopActiveB : bool;
 
@@ -5,106 +9,85 @@ var m_BhopActiveB : bool;
 var m_BhopWasAirborneB : bool;
 
 @addField(CExplorationStateJump)
-var m_BhopLastDtF : float;
-
-@addField(CExplorationStateJump)
 var m_BhopVelV : Vector;
 
 @addField(CExplorationStateJump)
-var m_BhopCamStoredB : bool;
+var m_BhopStepV : Vector;
 
 @addField(CExplorationStateJump)
-var m_BhopCamWasOnB : bool;
+var m_BhopSimTimeF : float;
 
 @addField(CExplorationStateJump)
-var m_BhopCamRotXB : bool;
+var m_BhopMotionOffB : bool;
 
 @addField(CExplorationStateJump)
-var m_BhopCamRotYB : bool;
+var m_BhopHasSavedJumpB : bool;
 
 @addField(CExplorationStateJump)
-var m_BhopCamMaxStoredB : bool;
+var m_BhopSavedSubstateE : EJumpSubState;
 
 @addField(CExplorationStateJump)
-var m_BhopCamMaxDistF : float;
+var m_BhopSavedTakeOffF : float;
 
 @addField(CExplorationStateJump)
-var m_BhopCamCtrlStoredB : bool;
+var m_BhopSavedPhysicB : bool;
 
 @addField(CExplorationStateJump)
-var m_BhopCamRotN : name;
+var m_BhopSavedRecalcB : bool;
 
 @addField(CExplorationStateJump)
-var m_BhopCamPosN : name;
+var m_BhopSavedAirControlB : bool;
 
 @addField(CExplorationStateJump)
-var m_BhopCamPosV : Vector;
+var m_BhopSavedOrientF : float;
 
 @addField(CExplorationStateJump)
-var m_BhopCamVelV : Vector;
+var m_BhopSavedLandTimeF : float;
 
 @addField(CExplorationStateJump)
-var m_BhopCamTargetV : Vector;
+var m_BhopSavedCanSetVelB : bool;
 
 @addField(CExplorationStateJump)
-var m_BhopCamZStoredB : bool;
-
-@addField(CExplorationStateJump)
-var m_BhopCamLocalV : Vector;
-
-@addField(CExplorationStateJump)
-var m_BhopCamLocalStoredB : bool;
+var m_BhopSavedVelV : Vector;
 
 @addField(CExplorationStateManager)
 var m_BhopJumpO : CExplorationStateJump;
 
 
 @addMethod(CExplorationStateJump)
-function BhopAirAccel() : float
+function BhopTick() : float
 {
-	return 6.0;
+	return 0.01;
 }
 
 @addMethod(CExplorationStateJump)
-function BhopAirWishCap() : float
-{
-	return 30.0;
-}
-
-@addMethod(CExplorationStateJump)
-function BhopAirMaxSpeed() : float
-{
-	return 320.0;
-}
-
-@addMethod(CExplorationStateJump)
-function BhopStrafeKeyScale() : float
-{
-	return 0.75;
-}
-
-@addMethod(CExplorationStateJump)
-function BhopCurveRadius() : float
-{
-	return 6.0;
-}
-
-@addMethod(CExplorationStateJump)
-function BhopCameraFollowOmega() : float
+function BhopAirAccelRate() : float
 {
 	return 10.0;
 }
 
 @addMethod(CExplorationStateJump)
-function BhopCameraHeightOffset() : float
+function BhopWishCapUU() : float
 {
-	return 0.7;
+	return 30.0;
 }
 
 @addMethod(CExplorationStateJump)
-function BhopCameraHeightSmooth() : float
+function BhopMaxSpeedUU() : float
 {
-	return 0.6;
+	return 320.0;
+}
+
+@addMethod(CExplorationStateJump)
+function BhopCommandSpeedUU() : float
+{
+	return 400.0;
+}
+
+@addMethod(CExplorationStateJump)
+function BhopSimLimit() : float
+{
+	return 0.1;
 }
 
 @addMethod(CExplorationStateJump)
@@ -114,41 +97,26 @@ function BhopMetersPerUnit() : float
 }
 
 @addMethod(CExplorationStateJump)
-function BhopFriction() : float
-{
-	return 4.0;
-}
-
-@addMethod(CExplorationStateJump)
-function BhopStopSpeed() : float
-{
-	return 2.54;
-}
-
-@addMethod(CExplorationStateJump)
 function BhopJumpSpeed() : float
 {
-	return 7.0;
+	// sqrt(2 * 800 * 45) inches/s, in meters. Standing HL1 jump.
+	return 6.815535;
 }
 
 @addMethod(CExplorationStateJump)
 function BhopGravity() : float
 {
-	return 7.0;
+	// sv_gravity 800 inches/s^2 is 20.32 m/s^2. UpdateParabolicVerticalMovement
+	// decelerates at three times the stored value, so store one third.
+	return 6.773333;
 }
 
 @addMethod(CExplorationStateJump)
-function BhopMaxChainFall() : float
+function BhopTerminalSpeed() : float
 {
-	return 6.0;
+	// sv_maxvelocity 2000 inches/s, in meters.
+	return 50.8;
 }
-
-@addMethod(CExplorationStateJump)
-function BhopCameraHopDist() : float
-{
-	return 3.0;
-}
-
 
 @addMethod(CExplorationStateJump)
 function BhopFlat( v : Vector ) : Vector
@@ -168,6 +136,12 @@ function BhopFlatUnit( v : Vector ) : Vector
 	}
 
 	return v;
+}
+
+@addMethod(CExplorationStateJump)
+function BhopInFirstPerson() : bool
+{
+	return FP().IsRunning();
 }
 
 @addMethod(CExplorationStateJump)
@@ -216,7 +190,7 @@ function BhopSignCastBlocks() : bool
 @addMethod(CExplorationStateJump)
 function BhopCanHop() : bool
 {
-	return BhopPlayerIsOnFoot() && !BhopInteractionBlocks() && !BhopSignCastBlocks();
+	return BhopInFirstPerson() && BhopPlayerIsOnFoot() && !BhopInteractionBlocks() && !BhopSignCastBlocks();
 }
 
 @addMethod(CExplorationStateJump)
@@ -236,115 +210,181 @@ function BhopIsNormalJump() : bool
 }
 
 @addMethod(CExplorationStateJump)
-function BhopStripVanillaDelay()
-{
-	m_CooldownCurF = 0.0;
-	m_CooldownTotalF = 0.0;
-	m_JumpParmsIdleS.m_TakeOffTimeF = 0.0;
-	m_JumpParmsIdleToWalkS.m_TakeOffTimeF = 0.0;
-	m_JumpParmsWalkS.m_TakeOffTimeF = 0.0;
-	m_JumpParmsWalkHighS.m_TakeOffTimeF = 0.0;
-	m_JumpParmsRunS.m_TakeOffTimeF = 0.0;
-	m_JumpParmsSprintS.m_TakeOffTimeF = 0.0;
-	m_JumpParmsSlideS.m_TakeOffTimeF = 0.0;
-	m_JumpParmsGenericS.m_TakeOffTimeF = 0.0;
-}
-
-@addMethod(CExplorationStateJump)
-function BhopFallIsShort() : bool
-{
-	var fallDiff		: float;
-	var jumpTotalDiff	: float;
-
-	m_ExplorationO.m_SharedDataO.CalculateFallingHeights( fallDiff, jumpTotalDiff );
-	return fallDiff <= BhopMaxChainFall();
-}
-
-@addMethod(CExplorationStateJump)
 function BhopCanLand() : bool
 {
-	if( !m_BhopActiveB || m_ExplorationO.m_SharedDataO.m_LandingOnWater )
+	if( !BhopPlayerIsOnFoot() || BhopInteractionBlocks() )
 	{
 		return false;
 	}
 
-	if( !BhopPlayerIsOnFoot() || BhopInteractionBlocks() || !BhopFallIsShort() )
+	return m_BhopWasAirborneB && m_ExplorationO.GetStateTimeF() > 0.05;
+}
+
+@addMethod(CExplorationStateJump)
+function BhopRememberJump()
+{
+	m_BhopHasSavedJumpB = true;
+	m_BhopSavedSubstateE = m_SubstateE;
+	m_BhopSavedTakeOffF = m_JumpParmsS.m_TakeOffTimeF;
+	m_BhopSavedPhysicB = m_JumpParmsS.m_UsePhysicJumpB;
+	m_BhopSavedRecalcB = m_JumpParmsS.m_RecalcSpeedOnInertialB;
+	m_BhopSavedAirControlB = m_JumpParmsS.m_AllowAirDisplacementControlB;
+	m_BhopSavedOrientF = m_JumpParmsS.m_OrientationSpeedF;
+	m_BhopSavedLandTimeF = m_JumpParmsS.m_TimeToPrepareForLandF;
+	m_BhopSavedCanSetVelB = m_CanSetVelocityB;
+}
+
+@addMethod(CExplorationStateJump)
+function BhopRestoreJump()
+{
+	if( !m_BhopHasSavedJumpB )
 	{
-		return false;
+		return;
 	}
 
-	return m_BhopWasAirborneB && m_ExplorationO.GetStateTimeF() > 0.05 && m_JumpParmsS.m_JumpTypeE != EJT_Skate;
+	m_JumpParmsS.m_TakeOffTimeF = m_BhopSavedTakeOffF;
+	m_JumpParmsS.m_UsePhysicJumpB = m_BhopSavedPhysicB;
+	m_JumpParmsS.m_RecalcSpeedOnInertialB = m_BhopSavedRecalcB;
+	m_JumpParmsS.m_AllowAirDisplacementControlB = m_BhopSavedAirControlB;
+	m_JumpParmsS.m_OrientationSpeedF = m_BhopSavedOrientF;
+	m_JumpParmsS.m_TimeToPrepareForLandF = m_BhopSavedLandTimeF;
+	m_CanSetVelocityB = m_BhopSavedCanSetVelB;
+	m_LandPredictedB = false;
+	m_ExplorationO.m_SharedDataO.m_JumpIsTooSoonToLandB = m_ExplorationO.GetStateTimeF() < m_BhopSavedLandTimeF;
+	m_ExplorationO.SetBehaviorParamBool( m_BehParamIsHandledByAnimS, !m_BhopSavedPhysicB );
+	m_ExplorationO.m_MoverO.SetPlaneMovementParams( m_JumpParmsS.m_HorMovementS );
+	m_ExplorationO.m_MoverO.SetVerticalMovementParams( m_JumpParmsS.m_VerticalMovementS );
+	// Takeoff is already over. Putting that substate back makes the next update
+	// play Flight, which applies a new jump impulse and refuses the landing.
+	if( m_ExplorationO.GetStateTimeF() >= m_BhopSavedTakeOffF )
+	{
+		if( m_BhopSavedPhysicB && m_JumpParmsS.m_JumpTypeE != EJT_Sprint )
+		{
+			m_SubstateE = JSS_Inertial;
+			m_ExplorationO.m_MoverO.SetPlaneMovementParams( m_JumpParmsFallS.m_HorMovementS );
+			m_ExplorationO.m_MoverO.SetVerticalMovementParams( m_JumpParmsFallS.m_VerticalMovementS );
+		}
+		else
+		{
+			m_SubstateE = JSS_Flight;
+		}
+	}
+	else
+	{
+		m_SubstateE = m_BhopSavedSubstateE;
+	}
+	m_BhopHasSavedJumpB = false;
 }
 
 @addMethod(CExplorationStateJump)
 function BhopStop()
 {
+	if( m_BhopActiveB )
+	{
+		BhopRestoreJump();
+	}
+
 	m_BhopActiveB = false;
 	m_BhopWasAirborneB = false;
-	m_BhopVelV.X = 0.0;
-	m_BhopVelV.Y = 0.0;
-	m_BhopVelV.Z = 0.0;
-	m_BhopVelV.W = 0.0;
+	m_BhopSimTimeF = 0.0;
+	VecSetZeros( m_BhopVelV );
+	VecSetZeros( m_BhopSavedVelV );
+	VecSetZeros( m_BhopStepV );
+
+	if( m_BhopMotionOffB )
+	{
+		BhopSetExtractedMotion( true );
+		m_BhopMotionOffB = false;
+	}
+}
+
+@addMethod(CExplorationStateJump)
+function BhopSetExtractedMotion( useMotion : bool )
+{
+	thePlayer.GetRootAnimatedComponent().SetUseExtractedMotion( useMotion );
+}
+
+@addMethod(CExplorationStateJump)
+function BhopYieldToThirdPerson()
+{
+	if( m_BhopActiveB && !BhopInFirstPerson() )
+	{
+		BhopHandBack();
+	}
+}
+
+@addMethod(CExplorationStateJump)
+function BhopHandBack()
+{
+	var velocity	: Vector;
+	var vertical	: float;
+	var maxDown		: float;
+
+	velocity = BhopFlat( m_BhopSavedVelV );
+	if( VecLength2D( velocity ) < 0.01 )
+	{
+		velocity = BhopFlat( VecFromHeading( m_ExplorationO.m_OwnerE.GetHeading() ) * m_JumpParmsS.m_HorImpulseF );
+	}
+	vertical = m_ExplorationO.m_MoverO.GetMovementVerticalSpeedF();
+	BhopStop();
+	m_ExplorationO.m_MoverO.SetVelocity( velocity );
+
+	if( m_SubstateE == JSS_Inertial )
+	{
+		maxDown = m_JumpParmsFallS.m_VerticalMovementS.m_VertMaxSpeedF;
+	}
+	else
+	{
+		maxDown = m_JumpParmsS.m_VerticalMovementS.m_VertMaxSpeedF;
+	}
+	if( maxDown < 0.0 && vertical < maxDown )
+	{
+		vertical = maxDown;
+	}
+	m_ExplorationO.m_MoverO.SetVerticalSpeed( vertical );
 }
 
 @addMethod(CExplorationStateJump)
 function BhopReleaseToGround()
 {
-	BhopStop();
+	var velocity : Vector;
+
+	velocity = BhopFlat( m_BhopVelV );
+	m_ExplorationO.m_MoverO.SetVelocity( velocity );
 	m_ExplorationO.m_MoverO.SetManualMovement( false );
 	m_ExplorationO.m_MoverO.SetVerticalSpeed( 0.0 );
-	BhopRestoreCameraCenter();
+	m_ExplorationO.m_SharedDataO.ResetHeightFallen();
+	BhopStop();
 	SetReadyToChangeTo( m_ExplorationO.GetDefaultStateName() );
+}
+
+@addMethod(CExplorationStateJump)
+function BhopConsiderVelocity( current : Vector, candidate : Vector ) : Vector
+{
+	if( VecLength2D( candidate ) > VecLength2D( current ) )
+	{
+		return candidate;
+	}
+
+	return current;
 }
 
 @addMethod(CExplorationStateJump)
 function BhopHorizontalVelocity() : Vector
 {
-	var owned		: Vector;
-	var moverVel	: Vector;
-	var ownedSpeed	: float;
-	var moverSpeed	: float;
+	var best		: Vector;
+	var impulse		: Vector;
 
-	owned = BhopFlat( m_BhopVelV );
-	moverVel = BhopFlat( m_ExplorationO.m_MoverO.GetMovementHorizontalVelocityV() );
-	ownedSpeed = VecLength2D( owned );
-	moverSpeed = VecLength2D( moverVel );
+	best = BhopFlat( m_ExplorationO.m_MoverO.GetMovementHorizontalVelocityV() );
+	best = BhopConsiderVelocity( best, BhopFlat( m_ExplorationO.m_OwnerMAC.GetVelocity() ) );
 
-	if( ownedSpeed >= moverSpeed && ownedSpeed > 0.05 )
+	if( m_JumpParmsS.m_HorImpulseF > 0.2 )
 	{
-		return owned;
+		impulse = BhopFlat( VecFromHeading( m_OrientationInitialF ) * m_JumpParmsS.m_HorImpulseF );
+		best = BhopConsiderVelocity( best, impulse );
 	}
 
-	if( moverSpeed < 0.2 && m_JumpParmsS.m_HorImpulseF > 0.2 )
-	{
-		moverVel = BhopFlat( VecFromHeading( m_OrientationInitialF ) * m_JumpParmsS.m_HorImpulseF );
-	}
-
-	return moverVel;
-}
-
-@addMethod(CExplorationStateJump)
-function BhopApplyGroundFriction( velocity : Vector ) : Vector
-{
-	var speed		: float;
-	var newSpeed	: float;
-	var dt			: float;
-
-	velocity = BhopFlat( velocity );
-	speed = VecLength2D( velocity );
-	if( speed < 0.05 )
-	{
-		return velocity;
-	}
-
-	dt = m_BhopLastDtF;
-	if( dt <= 0.0 )
-	{
-		dt = 0.016;
-	}
-
-	newSpeed = MaxF( 0.0, speed - MaxF( speed, BhopStopSpeed() ) * BhopFriction() * dt );
-	return BhopFlat( velocity * ( newSpeed / speed ) );
+	return best;
 }
 
 @addMethod(CExplorationStateJump)
@@ -360,7 +400,7 @@ function BhopApplyCoastParams()
 	plane.m_BrakeDotF = 1.0;
 
 	vert.m_VertImpulseF = BhopJumpSpeed();
-	vert.m_VertMaxSpeedF = -50.0;
+	vert.m_VertMaxSpeedF = -BhopTerminalSpeed();
 	vert.m_GravityUpF = -BhopGravity();
 	vert.m_GravityDownF = -BhopGravity();
 
@@ -369,113 +409,116 @@ function BhopApplyCoastParams()
 }
 
 @addMethod(CExplorationStateJump)
-function BhopAirAccelerate( dt : float )
+function BhopAirMoveTick( dt : float )
 {
 	var pad				: Vector;
 	var wish			: Vector;
 	var velocity		: Vector;
-	var camForward		: Vector;
-	var camRight		: Vector;
-	var commandSpeed	: float;
-	var wishCap			: float;
+	var forward			: Vector;
+	var right			: Vector;
+	var look			: EulerAngles;
+	var fmove			: float;
+	var smove			: float;
+	var wishSpeed		: float;
+	var wishSpd			: float;
 	var currentSpeed	: float;
 	var addSpeed		: float;
 	var accelSpeed		: float;
-	var length			: float;
 	var unit			: float;
-	var oldSpeed		: float;
-	var newSpeed		: float;
-	var side			: Vector;
-	var dir				: Vector;
-	var sideLen			: float;
-	var bonusSpeed		: float;
-	var gain			: float;
-	var camYaw			: float;
-	var velYaw			: float;
-	var turn			: float;
-	var maxTurn			: float;
-	var blend			: float;
 
 	pad = m_ExplorationO.m_InputO.GetMovementOnPadV();
-	if( AbsF( pad.X ) < 0.01 && AbsF( pad.Y ) < 0.01 )
+	fmove = ClampF( pad.Y, -1.0, 1.0 ) * BhopCommandSpeedUU();
+	smove = ClampF( pad.X, -1.0, 1.0 ) * BhopCommandSpeedUU();
+	if( AbsF( fmove ) < 0.1 && AbsF( smove ) < 0.1 )
 	{
 		return;
 	}
 
-	camForward = BhopFlatUnit( theCamera.GetCameraForward() );
-	camRight = BhopFlatUnit( theCamera.GetCameraRight() );
-	wish = BhopFlat( camRight * pad.X + camForward * pad.Y );
-	length = VecLength2D( wish );
-	if( length < 0.01 )
+	look = FP().GetRot();
+	forward = BhopFlatUnit( RotForward( look ) );
+	right = BhopFlatUnit( RotRight( look ) );
+	wish = BhopFlat( right * smove + forward * fmove );
+	wishSpeed = VecLength2D( wish );
+	if( wishSpeed < 0.1 )
 	{
 		return;
 	}
 
+	if( wishSpeed > BhopMaxSpeedUU() )
+	{
+		wish = BhopFlat( wish * ( BhopMaxSpeedUU() / wishSpeed ) );
+		wishSpeed = BhopMaxSpeedUU();
+	}
+
+	wish = BhopFlat( wish * ( 1.0 / wishSpeed ) );
 	unit = BhopMetersPerUnit();
-	commandSpeed = MinF( length, 1.0 ) * BhopAirMaxSpeed() * unit;
-	wishCap = MinF( commandSpeed, BhopAirWishCap() * unit );
-	wish = wish * ( 1.0 / length );
+	velocity = BhopFlat( m_BhopVelV * ( 1.0 / unit ) );
 
-	velocity = BhopFlat( m_BhopVelV );
+	// PM_AirAccelerate. The 30 cap limits how fast wishdir may be, not the accel term.
+	wishSpd = wishSpeed;
+	if( wishSpd > BhopWishCapUU() )
+	{
+		wishSpd = BhopWishCapUU();
+	}
+
 	currentSpeed = VecDot( velocity, wish );
-	addSpeed = wishCap - currentSpeed;
-	if( addSpeed > 0.0 )
+	addSpeed = wishSpd - currentSpeed;
+	if( addSpeed <= 0.0 )
 	{
-		accelSpeed = BhopAirAccel() * commandSpeed * dt;
-		if( accelSpeed > addSpeed )
-		{
-			accelSpeed = addSpeed;
-		}
-
-		oldSpeed = VecLength2D( velocity );
-		velocity = BhopFlat( velocity + wish * accelSpeed );
-		newSpeed = VecLength2D( velocity );
-		if( pad.Y >= -0.01 && newSpeed < oldSpeed && newSpeed > 0.001 )
-		{
-			velocity = BhopFlat( velocity * ( oldSpeed / newSpeed ) );
-		}
+		return;
 	}
 
-	bonusSpeed = VecLength2D( velocity );
-	if( AbsF( pad.X ) >= 0.01 && bonusSpeed > 0.2 && VecLength2D( camForward ) > 0.5 )
+	accelSpeed = BhopAirAccelRate() * wishSpeed * dt;
+	if( accelSpeed > addSpeed )
 	{
-		camYaw = VecHeading( camForward );
-		velYaw = VecHeading( velocity );
-		turn = AngleDistance( camYaw, velYaw );
-		if( AbsF( turn ) > 0.05 )
-		{
-			maxTurn = ClampF( bonusSpeed * 57.3 / BhopCurveRadius(), 90.0, 220.0 ) * dt;
-			blend = ClampF( maxTurn / AbsF( turn ), 0.0, 1.0 );
-			dir = BhopFlat( velocity * ( 1.0 / bonusSpeed ) );
-			dir = BhopFlat( dir + ( camForward - dir ) * blend );
-			sideLen = VecLength2D( dir );
-			if( sideLen > 0.01 )
-			{
-				velocity = BhopFlat( dir * ( bonusSpeed / sideLen ) );
-				bonusSpeed = VecLength2D( velocity );
-			}
-		}
+		accelSpeed = addSpeed;
 	}
 
-	if( AbsF( pad.X ) >= 0.01 && pad.Y >= -0.01 )
+	m_BhopVelV = BhopFlat( ( velocity + wish * accelSpeed ) * unit );
+}
+
+@addMethod(CExplorationStateJump)
+function BhopAdvance( dt : float )
+{
+	BhopSlideOnContacts();
+	BhopAirMoveTick( dt );
+	m_BhopStepV = BhopFlat( m_BhopStepV + m_BhopVelV * dt );
+}
+
+@addMethod(CExplorationStateJump)
+function BhopSimAir( frameDt : float )
+{
+	var steps	: int;
+	var tick	: float;
+
+	VecSetZeros( m_BhopStepV );
+	if( frameDt <= 0.0 )
 	{
-		gain = BhopAirAccel() * BhopStrafeKeyScale() * AbsF( pad.X ) * dt;
-		if( bonusSpeed > 0.2 )
-		{
-			velocity = velocity * ( ( bonusSpeed + gain ) / bonusSpeed );
-		}
-		else
-		{
-			side = BhopFlat( camRight * pad.X );
-			sideLen = VecLength2D( side );
-			if( sideLen >= 0.01 )
-			{
-				velocity = velocity + side * ( gain / sideLen );
-			}
-		}
+		return;
 	}
 
-	m_BhopVelV = BhopFlat( velocity );
+	m_BhopSimTimeF += frameDt;
+	if( m_BhopSimTimeF > BhopSimLimit() )
+	{
+		m_BhopSimTimeF = BhopSimLimit();
+	}
+
+	tick = BhopTick();
+	steps = 0;
+	while( m_BhopSimTimeF >= tick && steps < 10 )
+	{
+		m_BhopSimTimeF -= tick;
+		BhopAdvance( tick );
+		steps += 1;
+	}
+
+	// A leftover shorter than one tick still has to move this frame. Dropping
+	// it makes the view advance one tick, then two, at a steady frame rate.
+	if( m_BhopSimTimeF > 0.0 )
+	{
+		BhopAdvance( m_BhopSimTimeF );
+		m_BhopSimTimeF = 0.0;
+	}
 }
 
 @addMethod(CExplorationStateJump)
@@ -535,18 +578,25 @@ function BhopFaceCamera()
 	var rotation	: EulerAngles;
 
 	m_ExplorationO.m_MoverO.BhopSetYaw( 0.0 );
-	camYaw = theCamera.GetCameraHeading();
+	camYaw = FP().GetRotYaw();
 	m_OrientationInitialF = camYaw;
 	rotation = m_ExplorationO.m_OwnerMAC.GetWorldRotation();
 	m_ExplorationO.m_MoverO.BhopSetYaw( AngleDistance( camYaw, rotation.Yaw ) );
 }
 
 @addMethod(CExplorationStateJump)
-function BhopLaunch( horizontal : Vector )
+function BhopLaunch( horizontal : Vector, optional chain : bool )
 {
 	horizontal = BhopFlat( horizontal );
+	if( !chain )
+	{
+		BhopRememberJump();
+		m_BhopSavedVelV = horizontal;
+	}
 	m_BhopActiveB = true;
 	m_BhopWasAirborneB = false;
+	m_BhopSimTimeF = 0.0;
+	VecSetZeros( m_BhopStepV );
 	m_ExplorationO.m_BhopJumpO = this;
 	m_BhopVelV = horizontal;
 
@@ -556,306 +606,41 @@ function BhopLaunch( horizontal : Vector )
 	m_JumpParmsS.m_AllowAirDisplacementControlB = false;
 	m_JumpParmsS.m_OrientationSpeedF = 0.0;
 	m_CanSetVelocityB = true;
-	m_SubstateE = JSS_Inertial;
-	m_LandPredictedB = true;
 	m_LandPredicedCoefF = 0.0;
 	m_CooldownCurF = 0.0;
-
-	m_ExplorationO.SetBehaviorParamBool( m_BehParamIsHandledByAnimS, false );
 	m_ExplorationO.m_OwnerE.SetBehaviorVariable( m_BehEventPredictingS, 0.0 );
-	m_ExplorationO.SendAnimEvent( 'Jump', true );
-	if( IsNameValid( m_JumpParmsS.m_BehaviorEventN ) )
-	{
-		m_ExplorationO.SendAnimEvent( m_JumpParmsS.m_BehaviorEventN, true );
-	}
+	BhopSuppressLand();
 
+	m_ExplorationO.m_SharedDataO.ResetHeightFallen();
+
+	m_BhopMotionOffB = true;
+	BhopSetExtractedMotion( false );
 	m_ExplorationO.m_MoverO.SetManualMovement( true );
 	m_ExplorationO.m_OwnerMAC.EnableVirtualControllerCollisionResponse( 'MainCollider', true );
 	m_ExplorationO.m_OwnerMAC.GetMovementAdjustor().CancelByName( 'turnOnJump' );
 	m_ExplorationO.m_OwnerMAC.SetEnabledFeetIK( false );
-	m_ExplorationO.m_SharedDataO.m_JumpIsTooSoonToLandB = true;
 	m_ExplorationO.m_SharedDataO.m_LandingOnWater = false;
-	m_ExplorationO.m_SharedDataO.ResetHeightFallen();
 
 	BhopApplyCoastParams();
 	m_ExplorationO.m_MoverO.SetVelocity( m_BhopVelV );
 	m_ExplorationO.m_MoverO.SetVerticalSpeed( BhopJumpSpeed() );
-	BhopSuppressCameraCenter();
 	SetReadyToChangeTo( GetStateName() );
 }
 
 @addMethod(CExplorationStateJump)
-function BhopSuppressCameraCenter()
+function BhopSuppressLand()
 {
-	var camera : CCustomCamera;
-
-	if( m_BhopCamStoredB )
-	{
-		return;
-	}
-
-	camera = theGame.GetGameCamera();
-	if( !camera )
-	{
-		return;
-	}
-
-	m_BhopCamWasOnB = camera.allowAutoRotation;
-	m_BhopCamRotXB = theGame.IsCameraAutoRotX();
-	m_BhopCamRotYB = theGame.IsCameraAutoRotY();
-	m_BhopCamStoredB = true;
-	camera.allowAutoRotation = false;
-	theGame.SetCameraAutoRotX( false );
-	theGame.SetCameraAutoRotY( false );
-}
-
-@addMethod(CExplorationStateJump)
-function BhopRestoreCameraCenter()
-{
-	var camera : CCustomCamera;
-
-	if( !m_BhopCamStoredB )
-	{
-		return;
-	}
-
-	camera = theGame.GetGameCamera();
-	if( camera )
-	{
-		camera.allowAutoRotation = m_BhopCamWasOnB;
-	}
-
-	theGame.SetCameraAutoRotX( m_BhopCamRotXB );
-	theGame.SetCameraAutoRotY( m_BhopCamRotYB );
-	m_BhopCamStoredB = false;
-	m_BhopCamCtrlStoredB = false;
-	m_BhopCamZStoredB = false;
-	m_BhopCamLocalStoredB = false;
-	BhopRestoreCameraDistance();
-}
-
-@addMethod(CExplorationStateJump)
-function BhopEnableMouse()
-{
-	var camera : CCustomCamera;
-
-	camera = theGame.GetGameCamera();
-	if( camera && ( !camera.IsManualControledHor() || !camera.IsManualControledVer() ) )
-	{
-		camera.EnableManualControl( true );
-	}
-}
-
-@addMethod(CExplorationStateJump)
-function BhopKeepMouseCamera( rot : ICustomCameraPivotRotationController, pos : ICustomCameraPivotPositionController )
-{
-	var camera		: CCustomCamera;
-	var rotName		: name;
-	var posName		: name;
-	var switched	: bool;
-
-	cameraFallIsSet = false;
-	if( rot )
-	{
-		rotName = rot.controllerName;
-	}
-	if( pos )
-	{
-		posName = pos.controllerName;
-	}
-
-	if( !m_BhopCamCtrlStoredB )
-	{
-		m_BhopCamRotN = rotName;
-		m_BhopCamPosN = posName;
-		m_BhopCamCtrlStoredB = true;
-		BhopEnableMouse();
-	}
-
-	camera = theGame.GetGameCamera();
-	if( camera && ( rotName == 'LongFall' || rotName == 'Jump' ) )
-	{
-		if( IsNameValid( m_BhopCamRotN ) && m_BhopCamRotN != 'LongFall' && m_BhopCamRotN != 'Jump' )
-		{
-			camera.ChangePivotRotationController( m_BhopCamRotN );
-		}
-		else
-		{
-			camera.ChangePivotRotationController( 'Exploration' );
-		}
-		switched = true;
-	}
-
-	if( camera && posName == 'Jump' )
-	{
-		if( IsNameValid( m_BhopCamPosN ) && m_BhopCamPosN != 'Jump' )
-		{
-			camera.ChangePivotPositionController( m_BhopCamPosN );
-		}
-		else
-		{
-			camera.ChangePivotPositionController( 'Default' );
-		}
-		switched = true;
-	}
-
-	if( switched )
-	{
-		BhopEnableMouse();
-	}
-}
-
-@addMethod(CExplorationStateJump)
-function BhopRestoreCameraDistance()
-{
-	var camera		: CCustomCamera;
-	var controller	: ICustomCameraPivotDistanceController;
-
-	if( !m_BhopCamMaxStoredB )
-	{
-		return;
-	}
-
-	camera = theGame.GetGameCamera();
-	if( camera )
-	{
-		controller = camera.GetActivePivotDistanceController();
-		if( controller )
-		{
-			controller.maxDist = m_BhopCamMaxDistF;
-		}
-	}
-
-	m_BhopCamMaxStoredB = false;
-}
-
-@addMethod(CExplorationStateJump)
-function BhopUpdateCameraDistance( controller : ICustomCameraPivotDistanceController )
-{
-	var dist : float;
-
-	if( !controller )
-	{
-		return;
-	}
-
-	if( !m_BhopCamMaxStoredB )
-	{
-		m_BhopCamMaxDistF = controller.maxDist;
-		m_BhopCamMaxStoredB = true;
-	}
-
-	dist = BhopCameraHopDist();
-	if( controller.maxDist < dist )
-	{
-		controller.maxDist = dist;
-	}
-
-	controller.SetDesiredDistance( dist, 30.0 );
-}
-
-@addMethod(CExplorationStateJump)
-function BhopUpdateCameraFollow( target : Vector, dt : float )
-{
-	var omega		: float;
-	var error		: Vector;
-	var targetVel	: Vector;
-	var accel		: Vector;
-	var step		: float;
-	var goalZ		: float;
-
-	if( !m_BhopCamZStoredB )
-	{
-		m_BhopCamPosV = target;
-		m_BhopCamPosV.Z = target.Z + BhopCameraHeightOffset();
-		m_BhopCamVelV = BhopFlat( m_BhopVelV );
-		m_BhopCamTargetV = target;
-		m_BhopCamZStoredB = true;
-		return;
-	}
-
-	if( dt <= 0.0 )
-	{
-		return;
-	}
-
-	step = ClampF( dt, 0.0, 0.05 );
-	targetVel = BhopFlat( ( target - m_BhopCamTargetV ) * ( 1.0 / step ) );
-	error = BhopFlat( target - m_BhopCamPosV );
-	m_BhopCamVelV = BhopFlat( m_BhopCamVelV );
-	omega = BhopCameraFollowOmega();
-	accel = BhopFlat( error * ( omega * omega ) + ( targetVel - m_BhopCamVelV ) * ( 2.0 * omega ) );
-	m_BhopCamVelV = BhopFlat( m_BhopCamVelV + accel * step );
-	m_BhopCamPosV = m_BhopCamPosV + m_BhopCamVelV * step;
-
-	goalZ = target.Z + BhopCameraHeightOffset();
-	m_BhopCamPosV.Z = m_BhopCamPosV.Z + ( goalZ - m_BhopCamPosV.Z ) * ClampF( step / BhopCameraHeightSmooth(), 0.0, 1.0 );
-	m_BhopCamPosV.W = 0.0;
-	m_BhopCamTargetV = target;
-}
-
-@addMethod(CExplorationStateJump)
-function BhopApplyCamera( out moveData : SCameraMovementData, dt : float )
-{
-	var pos		: Vector;
-	var posCtrl	: ICustomCameraPivotPositionController;
-
-	BhopUpdateCameraDistance( moveData.pivotDistanceController );
-	pos = thePlayer.GetWorldPosition();
-	BhopUpdateCameraFollow( pos, dt );
-	posCtrl = moveData.pivotPositionController;
-	if( posCtrl )
-	{
-		posCtrl.SetDesiredPosition( m_BhopCamPosV, 30.0 );
-	}
-
-	BhopKeepMouseCamera( moveData.pivotRotationController, moveData.pivotPositionController );
-	BhopHoldMouseLook( moveData );
-	BhopHoldCameraOffset( moveData );
-}
-
-@addMethod(CExplorationStateJump)
-function BhopHoldMouseLook( out moveData : SCameraMovementData )
-{
-	var rotCtrl		: ICustomCameraPivotRotationController;
-	var rotation	: EulerAngles;
-
-	rotCtrl = moveData.pivotRotationController;
-	if( !rotCtrl )
-	{
-		return;
-	}
-
-	rotation = moveData.pivotRotationValue;
-	rotCtrl.SetDesiredPitch( rotation.Pitch );
-	rotCtrl.SetDesiredHeading( rotation.Yaw );
-}
-
-@addMethod(CExplorationStateJump)
-function BhopHoldCameraOffset( out moveData : SCameraMovementData )
-{
-	if( !m_BhopCamLocalStoredB )
-	{
-		m_BhopCamLocalV = moveData.cameraLocalSpaceOffset;
-		m_BhopCamLocalStoredB = true;
-	}
-
-	moveData.cameraLocalSpaceOffset = m_BhopCamLocalV;
-	moveData.cameraLocalSpaceOffsetVel.X = 0.0;
-	moveData.cameraLocalSpaceOffsetVel.Y = 0.0;
-	moveData.cameraLocalSpaceOffsetVel.Z = 0.0;
-	moveData.cameraLocalSpaceOffsetVel.W = 0.0;
+	m_SubstateE = JSS_Inertial;
+	m_LandPredictedB = true;
+	m_JumpParmsS.m_TimeToPrepareForLandF = 100.0;
+	m_ExplorationO.m_SharedDataO.m_JumpIsTooSoonToLandB = true;
+	m_ExplorationO.SetBehaviorParamBool( m_BehParamIsHandledByAnimS, false );
 }
 
 
 @wrapMethod(CExplorationStateJump)
 function StateWantsToEnter() : bool
 {
-	if( BhopCanHop() )
-	{
-		BhopStripVanillaDelay();
-	}
-
 	if( wrappedMethod() )
 	{
 		return true;
@@ -867,11 +652,13 @@ function StateWantsToEnter() : bool
 @wrapMethod(CExplorationStateJump)
 function StateEnterSpecific( prevStateName : name )
 {
-	BhopStripVanillaDelay();
+	var hop : bool;
+
+	hop = BhopCanHop();
 	wrappedMethod( prevStateName );
 	BhopStop();
 
-	if( !BhopIsNormalJump() || !BhopCanHop() )
+	if( !hop || !BhopIsNormalJump() )
 	{
 		return;
 	}
@@ -881,31 +668,33 @@ function StateEnterSpecific( prevStateName : name )
 		return;
 	}
 
-	BhopLaunch( BhopApplyGroundFriction( BhopHorizontalVelocity() ) );
+	BhopLaunch( BhopHorizontalVelocity() );
 }
 
 @wrapMethod(CExplorationStateJump)
 function StateUpdateSpecific( _Dt : float )
 {
-	m_BhopLastDtF = _Dt;
+	BhopYieldToThirdPerson();
+
 	if( m_BhopActiveB )
 	{
-		m_SubstateE = JSS_Inertial;
-		m_LandPredictedB = true;
-		BhopSlideOnContacts();
-		BhopAirAccelerate( _Dt );
+		BhopSuppressLand();
+		BhopApplyCoastParams();
+		BhopSimAir( _Dt );
 	}
 
 	wrappedMethod( _Dt );
 
 	if( m_BhopActiveB )
 	{
+		m_ExplorationO.SetBehaviorParamBool( m_BehParamIsHandledByAnimS, false );
+		BhopSetExtractedMotion( false );
 		m_ExplorationO.m_MoverO.SetVelocity( m_BhopVelV );
-		BhopFaceCamera();
-		if( !m_BhopCamStoredB )
+		if( m_ExplorationO.IsOnGround() && m_ExplorationO.m_InputO.IsJumpPressed() && BhopCanHop() )
 		{
-			BhopSuppressCameraCenter();
+			m_ExplorationO.m_MoverO.SetVerticalSpeed( BhopJumpSpeed() );
 		}
+		BhopFaceCamera();
 	}
 }
 
@@ -914,7 +703,7 @@ function Update2DLogicMovement( _Dt : float )
 {
 	if( m_BhopActiveB )
 	{
-		m_ExplorationO.m_MoverO.Translate( m_BhopVelV * _Dt );
+		m_ExplorationO.m_MoverO.Translate( m_BhopStepV );
 		return;
 	}
 
@@ -924,7 +713,11 @@ function Update2DLogicMovement( _Dt : float )
 @wrapMethod(CExplorationStateJump)
 function ReactToLoseGround() : bool
 {
-	m_BhopWasAirborneB = true;
+	if( m_BhopActiveB )
+	{
+		m_BhopWasAirborneB = true;
+	}
+
 	return wrappedMethod();
 }
 
@@ -933,15 +726,24 @@ function ReactToHitGround() : bool
 {
 	var useVanilla : bool;
 
-	useVanilla = !m_BhopActiveB || m_ExplorationO.m_SharedDataO.m_LandingOnWater || !BhopFallIsShort() || m_JumpParmsS.m_JumpTypeE == EJT_Skate;
+	BhopYieldToThirdPerson();
+
+	useVanilla = !m_BhopActiveB || m_ExplorationO.m_SharedDataO.m_LandingOnWater || m_JumpParmsS.m_JumpTypeE == EJT_Skate;
 	if( useVanilla )
 	{
+		if( m_BhopActiveB )
+		{
+			BhopStop();
+		}
+
 		return wrappedMethod();
 	}
 
-	if( m_ExplorationO.m_InputO.IsJumpPressed() && BhopCanHop() && m_ExplorationO.GetStateTimeF() > 0.05 )
+	if( m_BhopWasAirborneB && m_ExplorationO.m_InputO.IsJumpPressed() && BhopCanHop() )
 	{
-		BhopLaunch( BhopHorizontalVelocity() );
+		// Keep the speed already carried. Sampling the body again here stacks
+		// the measured velocity on top of itself every landing.
+		BhopLaunch( BhopFlat( m_BhopVelV ), true );
 		return true;
 	}
 
@@ -958,46 +760,7 @@ function ReactToHitGround() : bool
 function StateExitSpecific( nextStateName : name )
 {
 	BhopStop();
-	BhopRestoreCameraCenter();
 	wrappedMethod( nextStateName );
-}
-
-@wrapMethod(CR4Player)
-function OnGameCameraPostTick( out moveData : SCameraMovementData, dt : float )
-{
-	var jumpState	: CExplorationStateJump;
-	var handled		: bool;
-
-	handled = wrappedMethod( moveData, dt );
-	if( substateManager )
-	{
-		jumpState = substateManager.m_BhopJumpO;
-	}
-
-	if( !jumpState || !jumpState.m_BhopActiveB )
-	{
-		if( jumpState && jumpState.m_BhopCamMaxStoredB )
-		{
-			jumpState.BhopRestoreCameraDistance();
-		}
-
-		return handled;
-	}
-
-	jumpState.BhopApplyCamera( moveData, dt );
-	return handled;
-}
-
-@wrapMethod(CExplorationStateJump)
-function UpdateCameraChange()
-{
-	if( m_BhopActiveB )
-	{
-		cameraFallIsSet = false;
-		return;
-	}
-
-	wrappedMethod();
 }
 
 @wrapMethod(CExplorationStateAirCollision)
@@ -1006,7 +769,7 @@ function StateWantsToEnter() : bool
 	var jumpState : CExplorationStateJump;
 
 	jumpState = m_ExplorationO.m_BhopJumpO;
-	if( jumpState && jumpState.m_BhopActiveB )
+	if( jumpState && jumpState.m_BhopActiveB && jumpState.BhopInFirstPerson() )
 	{
 		return false;
 	}
@@ -1014,25 +777,13 @@ function StateWantsToEnter() : bool
 	return wrappedMethod();
 }
 
-@wrapMethod(CCameraPivotPositionControllerJump)
-function ControllerUpdate( out currentPosition : Vector, out currentVelocity : Vector, timeDelta : float )
+@wrapMethod(CR4Player)
+function ApplyFallingDamage( heightDiff : float, optional reducing : bool ) : float
 {
-	var jumpState : CExplorationStateJump;
-
-	if( thePlayer.substateManager )
+	if( FP().IsRunning() )
 	{
-		jumpState = thePlayer.substateManager.m_BhopJumpO;
+		return 0.0;
 	}
 
-	if( jumpState && jumpState.m_BhopActiveB && jumpState.m_BhopCamZStoredB )
-	{
-		currentPosition = jumpState.m_BhopCamPosV;
-		currentVelocity.X = 0.0;
-		currentVelocity.Y = 0.0;
-		currentVelocity.Z = 0.0;
-		currentVelocity.W = 0.0;
-		return;
-	}
-
-	wrappedMethod( currentPosition, currentVelocity, timeDelta );
+	return wrappedMethod( heightDiff, reducing );
 }
