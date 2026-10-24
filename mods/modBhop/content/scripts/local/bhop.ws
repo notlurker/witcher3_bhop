@@ -480,8 +480,8 @@ function BhopAirMoveTick( dt : float )
 @addMethod(CExplorationStateJump)
 function BhopAdvance( dt : float )
 {
-	BhopSlideOnContacts();
 	BhopAirMoveTick( dt );
+	BhopSlideOnContacts();
 	m_BhopStepV = BhopFlat( m_BhopStepV + m_BhopVelV * dt );
 }
 
@@ -522,47 +522,64 @@ function BhopSimAir( frameDt : float )
 }
 
 @addMethod(CExplorationStateJump)
-function BhopSlideOnContacts()
+function BhopClipOnNormal( velocity : Vector, normal : Vector ) : Vector
+{
+	var len		: float;
+	var into	: float;
+
+	len = VecLength( normal );
+	if( len < 0.01 )
+	{
+		return velocity;
+	}
+
+	normal = normal * ( 1.0 / len );
+	if( normal.Z < -0.3 )
+	{
+		return velocity;
+	}
+
+	into = VecDot( velocity, normal );
+	if( into < 0.0 )
+	{
+		velocity = velocity - normal * into;
+	}
+
+	return velocity;
+}
+
+@addMethod(CExplorationStateJump)
+function BhopSlideOnContacts( optional useGround : bool )
 {
 	var count		: int;
 	var i			: int;
 	var contact		: SCollisionData;
-	var normal		: Vector;
 	var velocity	: Vector;
-	var into		: float;
-	var len			: float;
 
 	count = m_ExplorationO.m_OwnerMAC.GetCollisionDataCount();
-	if( count <= 0 )
+	if( count <= 0 && !useGround )
 	{
 		return;
 	}
 
-	velocity = BhopFlat( m_BhopVelV );
+	// PM_ClipVelocity overbounce 1. Fall speed stays in the vector, so a
+	// downhill ramp adds it to the run and an uphill ramp spends it.
+	velocity = m_BhopVelV;
+	velocity.Z = m_ExplorationO.m_MoverO.GetMovementVerticalSpeedF();
+	velocity.W = 0.0;
 	for( i = 0; i < count; i += 1 )
 	{
 		contact = m_ExplorationO.m_OwnerMAC.GetCollisionData( i );
-		normal = contact.normal;
-		len = VecLength( normal );
-		if( len < 0.01 )
-		{
-			continue;
-		}
+		velocity = BhopClipOnNormal( velocity, contact.normal );
+	}
 
-		normal = normal * ( 1.0 / len );
-		if( normal.Z < -0.3 )
-		{
-			continue;
-		}
-
-		into = VecDot( velocity, normal );
-		if( into < 0.0 )
-		{
-			velocity = BhopFlat( velocity - normal * into );
-		}
+	if( useGround )
+	{
+		velocity = BhopClipOnNormal( velocity, m_ExplorationO.m_OwnerMAC.GetTerrainNormal( false ) );
 	}
 
 	m_BhopVelV = BhopFlat( velocity );
+	m_ExplorationO.m_MoverO.SetVerticalSpeed( velocity.Z );
 }
 
 @addMethod(CExplorationMover)
@@ -741,8 +758,10 @@ function ReactToHitGround() : bool
 
 	if( m_BhopWasAirborneB && m_ExplorationO.m_InputO.IsJumpPressed() && BhopCanHop() )
 	{
+		// Clip before the jump replaces vertical speed, or the landing gives none of it to the slope.
 		// Keep the speed already carried. Sampling the body again here stacks
 		// the measured velocity on top of itself every landing.
+		BhopSlideOnContacts( true );
 		BhopLaunch( BhopFlat( m_BhopVelV ), true );
 		return true;
 	}
