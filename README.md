@@ -12,7 +12,7 @@ Press P to toggle between third/first person modes (only available in packed ins
 If using manual install, you can bind the key for toggling yourself in the GFP Camera mod config.
 
 ## Install (packed)
-Everything needed for the mod is already packed into `witcher_bhop_packed.zip` (download from releases).
+Everything needed for the mod is already packed into [witcher_bhop_packed.zip](https://github.com/notlurker/witcher3_bhop/releases/download/2.0/witcher_bhop_packed.zip)
 Just extract the contents into `"steamapps\common\The Witcher 3"`.
 
 ## Install (manual)
