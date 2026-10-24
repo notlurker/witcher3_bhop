@@ -8,8 +8,8 @@
 ![Geralt bunny hopping](screenshot.jpg)
 
 ## Controls
-Press P to toggle between third/first person modes (only available in packed install).
-If using manual install, you can bind the key for toggling yourself in the GFP Camera mod config.
+**Only works in first person mode (through GFP mod)**.
+You can enable first person view in GFP mod settings or even bind it to a key to toggle it in-game.
 
 ## Install
 
