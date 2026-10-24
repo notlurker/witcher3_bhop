@@ -139,15 +139,6 @@ function BhopFlatUnit( v : Vector ) : Vector
 }
 
 @addMethod(CExplorationStateJump)
-function BhopZeroStep()
-{
-	m_BhopStepV.X = 0.0;
-	m_BhopStepV.Y = 0.0;
-	m_BhopStepV.Z = 0.0;
-	m_BhopStepV.W = 0.0;
-}
-
-@addMethod(CExplorationStateJump)
 function BhopInFirstPerson() : bool
 {
 	return FP().IsRunning();
@@ -221,17 +212,12 @@ function BhopIsNormalJump() : bool
 @addMethod(CExplorationStateJump)
 function BhopCanLand() : bool
 {
-	if( !m_BhopActiveB || m_ExplorationO.m_SharedDataO.m_LandingOnWater )
-	{
-		return false;
-	}
-
 	if( !BhopPlayerIsOnFoot() || BhopInteractionBlocks() )
 	{
 		return false;
 	}
 
-	return m_BhopWasAirborneB && m_ExplorationO.GetStateTimeF() > 0.05 && m_JumpParmsS.m_JumpTypeE != EJT_Skate;
+	return m_BhopWasAirborneB && m_ExplorationO.GetStateTimeF() > 0.05;
 }
 
 @addMethod(CExplorationStateJump)
@@ -301,15 +287,9 @@ function BhopStop()
 	m_BhopActiveB = false;
 	m_BhopWasAirborneB = false;
 	m_BhopSimTimeF = 0.0;
-	m_BhopVelV.X = 0.0;
-	m_BhopVelV.Y = 0.0;
-	m_BhopVelV.Z = 0.0;
-	m_BhopVelV.W = 0.0;
-	m_BhopSavedVelV.X = 0.0;
-	m_BhopSavedVelV.Y = 0.0;
-	m_BhopSavedVelV.Z = 0.0;
-	m_BhopSavedVelV.W = 0.0;
-	BhopZeroStep();
+	VecSetZeros( m_BhopVelV );
+	VecSetZeros( m_BhopSavedVelV );
+	VecSetZeros( m_BhopStepV );
 
 	if( m_BhopMotionOffB )
 	{
@@ -325,13 +305,21 @@ function BhopSetExtractedMotion( useMotion : bool )
 }
 
 @addMethod(CExplorationStateJump)
+function BhopYieldToThirdPerson()
+{
+	if( m_BhopActiveB && !BhopInFirstPerson() )
+	{
+		BhopHandBack();
+	}
+}
+
+@addMethod(CExplorationStateJump)
 function BhopHandBack()
 {
 	var velocity	: Vector;
 	var vertical	: float;
 	var maxDown		: float;
 
-	// The speed carried out of first person is the speed from before the hop.
 	velocity = BhopFlat( m_BhopSavedVelV );
 	if( VecLength2D( velocity ) < 0.01 )
 	{
@@ -387,8 +375,7 @@ function BhopHorizontalVelocity() : Vector
 	var best		: Vector;
 	var impulse		: Vector;
 
-	best = BhopFlat( m_BhopVelV );
-	best = BhopConsiderVelocity( best, BhopFlat( m_ExplorationO.m_MoverO.GetMovementHorizontalVelocityV() ) );
+	best = BhopFlat( m_ExplorationO.m_MoverO.GetMovementHorizontalVelocityV() );
 	best = BhopConsiderVelocity( best, BhopFlat( m_ExplorationO.m_OwnerMAC.GetVelocity() ) );
 
 	if( m_JumpParmsS.m_HorImpulseF > 0.2 )
@@ -491,12 +478,20 @@ function BhopAirMoveTick( dt : float )
 }
 
 @addMethod(CExplorationStateJump)
+function BhopAdvance( dt : float )
+{
+	BhopSlideOnContacts();
+	BhopAirMoveTick( dt );
+	m_BhopStepV = BhopFlat( m_BhopStepV + m_BhopVelV * dt );
+}
+
+@addMethod(CExplorationStateJump)
 function BhopSimAir( frameDt : float )
 {
 	var steps	: int;
 	var tick	: float;
 
-	BhopZeroStep();
+	VecSetZeros( m_BhopStepV );
 	if( frameDt <= 0.0 )
 	{
 		return;
@@ -513,9 +508,7 @@ function BhopSimAir( frameDt : float )
 	while( m_BhopSimTimeF >= tick && steps < 10 )
 	{
 		m_BhopSimTimeF -= tick;
-		BhopSlideOnContacts();
-		BhopAirMoveTick( tick );
-		m_BhopStepV = BhopFlat( m_BhopStepV + m_BhopVelV * tick );
+		BhopAdvance( tick );
 		steps += 1;
 	}
 
@@ -523,9 +516,7 @@ function BhopSimAir( frameDt : float )
 	// it makes the view advance one tick, then two, at a steady frame rate.
 	if( m_BhopSimTimeF > 0.0 )
 	{
-		BhopSlideOnContacts();
-		BhopAirMoveTick( m_BhopSimTimeF );
-		m_BhopStepV = BhopFlat( m_BhopStepV + m_BhopVelV * m_BhopSimTimeF );
+		BhopAdvance( m_BhopSimTimeF );
 		m_BhopSimTimeF = 0.0;
 	}
 }
@@ -605,7 +596,7 @@ function BhopLaunch( horizontal : Vector, optional chain : bool )
 	m_BhopActiveB = true;
 	m_BhopWasAirborneB = false;
 	m_BhopSimTimeF = 0.0;
-	BhopZeroStep();
+	VecSetZeros( m_BhopStepV );
 	m_ExplorationO.m_BhopJumpO = this;
 	m_BhopVelV = horizontal;
 
@@ -615,17 +606,11 @@ function BhopLaunch( horizontal : Vector, optional chain : bool )
 	m_JumpParmsS.m_AllowAirDisplacementControlB = false;
 	m_JumpParmsS.m_OrientationSpeedF = 0.0;
 	m_CanSetVelocityB = true;
-	m_SubstateE = JSS_Inertial;
-	m_LandPredictedB = true;
 	m_LandPredicedCoefF = 0.0;
 	m_CooldownCurF = 0.0;
-
-	m_ExplorationO.SetBehaviorParamBool( m_BehParamIsHandledByAnimS, false );
 	m_ExplorationO.m_OwnerE.SetBehaviorVariable( m_BehEventPredictingS, 0.0 );
-	m_JumpParmsS.m_TimeToPrepareForLandF = 100.0;
-	m_ExplorationO.m_SharedDataO.m_JumpIsTooSoonToLandB = true;
+	BhopSuppressLand();
 
-	// Land uses this height to play the heavy brace. A hop must not count as that fall.
 	m_ExplorationO.m_SharedDataO.ResetHeightFallen();
 
 	m_BhopMotionOffB = true;
@@ -640,6 +625,16 @@ function BhopLaunch( horizontal : Vector, optional chain : bool )
 	m_ExplorationO.m_MoverO.SetVelocity( m_BhopVelV );
 	m_ExplorationO.m_MoverO.SetVerticalSpeed( BhopJumpSpeed() );
 	SetReadyToChangeTo( GetStateName() );
+}
+
+@addMethod(CExplorationStateJump)
+function BhopSuppressLand()
+{
+	m_SubstateE = JSS_Inertial;
+	m_LandPredictedB = true;
+	m_JumpParmsS.m_TimeToPrepareForLandF = 100.0;
+	m_ExplorationO.m_SharedDataO.m_JumpIsTooSoonToLandB = true;
+	m_ExplorationO.SetBehaviorParamBool( m_BehParamIsHandledByAnimS, false );
 }
 
 
@@ -679,17 +674,11 @@ function StateEnterSpecific( prevStateName : name )
 @wrapMethod(CExplorationStateJump)
 function StateUpdateSpecific( _Dt : float )
 {
-	if( m_BhopActiveB && !BhopInFirstPerson() )
-	{
-		BhopHandBack();
-	}
+	BhopYieldToThirdPerson();
 
 	if( m_BhopActiveB )
 	{
-		m_SubstateE = JSS_Inertial;
-		m_LandPredictedB = true;
-		m_JumpParmsS.m_TimeToPrepareForLandF = 100.0;
-		m_ExplorationO.m_SharedDataO.m_JumpIsTooSoonToLandB = true;
+		BhopSuppressLand();
 		BhopApplyCoastParams();
 		BhopSimAir( _Dt );
 	}
@@ -737,12 +726,8 @@ function ReactToHitGround() : bool
 {
 	var useVanilla : bool;
 
-	if( m_BhopActiveB && !BhopInFirstPerson() )
-	{
-		BhopHandBack();
-	}
+	BhopYieldToThirdPerson();
 
-	// A tall drop used to enter Land. That state plays the brace and stops the hop.
 	useVanilla = !m_BhopActiveB || m_ExplorationO.m_SharedDataO.m_LandingOnWater || m_JumpParmsS.m_JumpTypeE == EJT_Skate;
 	if( useVanilla )
 	{
